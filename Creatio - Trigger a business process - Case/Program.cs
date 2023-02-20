@@ -7,10 +7,15 @@ using System.IO;
 using System.Net;
 using System.Xml;
 using System.Web.Script.Serialization;
+using System.Configuration;
+using Newtonsoft.Json.Linq;
+using Newtonsoft.Json;
+using System.Configuration;
 
 
-namespace Creatio___Trigger_a_business_process___Case
+namespace QueryAgentCaseDistribution
 {
+
     class ResponseStatus
     {
         public int Code { get; set; }
@@ -19,23 +24,32 @@ namespace Creatio___Trigger_a_business_process___Case
         public object PasswordChangeUrl { get; set; }
         public object RedirectUrl { get; set; }
     }
-
     class Program
     {
-        private const string baseUri = "http://10.10.23.141:82";
-        private const string authServiceUri = baseUri + @"/ServiceModel/AuthService.svc/Login";
-        private const string processServiceUri = baseUri + @"/0/ServiceModel/ProcessEngineService.svc/";
+        /*
+         Case direct routing
+         39c25750-511c-4e98-9e10-2c340c69e5ea
+         C
+         Case Internal routing
+         f10d54bd-06cc-40e8-b20a-9c7233d1b5c5 
+         I
+        */
+        public static string user = ConfigurationManager.AppSettings["username"];
+        public static  string pass = ConfigurationManager.AppSettings["password"];
+        public static string stat = ConfigurationManager.AppSettings["status"];
+        private static string baseUri = ConfigurationManager.AppSettings["base"];
+
+        private static string authServiceUri = baseUri + @"/ServiceModel/AuthService.svc/Login";
+        private static string processServiceUri = baseUri + @"/0/ServiceModel/ProcessEngineService.svc/";
         private static ResponseStatus status = null;
         public static CookieContainer AuthCookie = new CookieContainer();
-
-
         public static bool TryLogin(string userName, string userPassword)
         {
+
             var authRequest = HttpWebRequest.Create(authServiceUri) as HttpWebRequest;
             authRequest.Method = "POST";
             authRequest.ContentType = "application/json";
             authRequest.CookieContainer = AuthCookie;
-
             using (var requesrStream = authRequest.GetRequestStream())
             {
                 using (var writer = new StreamWriter(requesrStream))
@@ -46,7 +60,6 @@ namespace Creatio___Trigger_a_business_process___Case
                     }");
                 }
             }
-
             using (var response = (HttpWebResponse)authRequest.GetResponse())
             {
                 using (var reader = new StreamReader(response.GetResponseStream()))
@@ -55,7 +68,6 @@ namespace Creatio___Trigger_a_business_process___Case
                     status = new System.Web.Script.Serialization.JavaScriptSerializer().Deserialize<ResponseStatus>(responseText);
                 }
             }
-
             if (status != null)
             {
                 if (status.Code == 0)
@@ -67,56 +79,78 @@ namespace Creatio___Trigger_a_business_process___Case
             return false;
         }
 
-        public static void GetListOfAgentDesktop(string queueid, string routingtype)
+        public static void GetListOfAgentCases(string queueid, string routingtype,string status)
         {
+            //Direct routing examples below
             //39c25750-511c-4e98-9e10-2c340c69e5ea
             //C
-            string requestString = processServiceUri +
-                               "UsrProcess_80fe930/Execute?ResultParameterName=CaseList&QueueId=" + queueid + "&RoutingType=" + routingtype;
-        // ttp://10.10.23.141:82/0/ServiceModel/ProcessEngineService.svc/UsrProcess_80fe930/Execute?ResultParameterName=CaseList
-            HttpWebRequest request = HttpWebRequest.Create(requestString) as HttpWebRequest;
-            request.Method = "GET";
-            request.CookieContainer = AuthCookie;
+
+            //Internal routing examples below
+            //f10d54bd-06cc-40e8-b20a-9c7233d1b5c5
+            //I
+            //if ((queueid == "39c25750-511c-4e98-9e10-2c340c69e5ea" || queueid == "f10d54bd-06cc-40e8-b20a-9c7233d1b5c5") && (routingtype == "C" || routingtype == "I"))
+
+            int startIndex;
+                int endIndex;
+                string jsonString = "";
+                string requestString = processServiceUri +
+                                   "UsrProcess_80fe930/Execute?ResultParameterName=CaseList&QueueId=" + queueid + "&RoutingType=" + routingtype + "&status=" + status;
+                HttpWebRequest request = HttpWebRequest.Create(requestString) as HttpWebRequest;
+                request.Method = "GET";
+                request.CookieContainer = AuthCookie;
             using (var response = request.GetResponse())
             {
                 using (var reader = new StreamReader(response.GetResponseStream()))
                 {
                     string responseText = reader.ReadToEnd();
-                    Console.WriteLine(responseText);
+                    startIndex = responseText.IndexOf("[{");
+                    if (startIndex > 0)
+                    {
+                        endIndex = responseText.LastIndexOf("}]") + 2;
+                        jsonString = responseText.Substring(startIndex, endIndex - startIndex);
+                        Console.WriteLine("Response as follow");
+                        Console.WriteLine(jsonString);
+                    }
+                    else
+                    {
+                        var data = new { Message = "No Data Found" };
+                        var json = JsonConvert.SerializeObject(data);
+                        Console.WriteLine(json);
+                        //Console.ReadLine();
+                    }
                 }
             }
         }
 
         static void Main(string[] args)
         {
-            Console.Write("Enter Username: ");
-            string user = Console.ReadLine();
-            Console.Write("Enter Password: ");
-            string pass = Console.ReadLine();
             if (!TryLogin(user, pass))
             {
-                Console.WriteLine("Wrong login or password. Application will be terminated.");
+                var data = new { Message = "Wrong login or password" };
+                var json = JsonConvert.SerializeObject(data);
+                Console.WriteLine(json);
             }
             else
             {
-                Console.WriteLine("Login Successfull");
-                Console.Write("Enter Queue: ");
+                Console.Write("Enter The Queue Id: ");
                 string queue = Console.ReadLine();
-                Console.Write("Enter Routing Type: ");
+
+                Console.Write("Enter The Routing Type,'C' for direct case routing and 'I' for internal case routing: ");
                 string routingtype = Console.ReadLine();
+
+                Console.WriteLine();
+
                 try
                 {
-                    GetListOfAgentDesktop(queue, routingtype);// "39c25750-511c-4e98-9e10-2c340c69e5ea","I");
+                    GetListOfAgentCases(queue, routingtype, stat);
                 }
-                catch (Exception)
+                catch (Exception er)
                 {
-                    // Process exception here. Or throw it further.
+                    Console.WriteLine(er);
                     throw;
                 }
 
             };
-
-            Console.WriteLine("Press ENTER to exit...");
             Console.ReadLine();
         }
     }

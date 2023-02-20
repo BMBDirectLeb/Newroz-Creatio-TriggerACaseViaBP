@@ -3,7 +3,7 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 15
 VisualStudioVersion = 15.0.28307.2017
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Creatio - Trigger a business process - Case", "Creatio - Trigger a business process - Case\Creatio - Trigger a business process - Case.csproj", "{E8D3138E-AD42-49C5-B187-200BD6961328}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "QueryAgentCaseDistribution", "Creatio - Trigger a business process - Case\QueryAgentCaseDistribution.csproj", "{E8D3138E-AD42-49C5-B187-200BD6961328}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
